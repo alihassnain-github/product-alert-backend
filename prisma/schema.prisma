@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum AlertFrequency {
+  ONCE   
+  ALWAYS 
+}
+
+enum LogStatus {
+  SUCCESS
+  FAILED
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model AlertProduct {
+  id             Int            @id @default(autoincrement())
+  shop           String
+  productId      String
+  variantId      String
+  inventoryItem  String
+  threshold      Int
+  alertFrequency AlertFrequency @default(ONCE)
+  isTriggered    Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  logs EmailLog[]
+
+  @@index([shop])
+}
+
+model EmailLog {
+  id             Int          @id @default(autoincrement())
+  shop           String // Added: Helps in global log cleanup or store-specific queries
+  alertProductId Int // Foreign Key to AlertProduct
+  alertProduct   AlertProduct @relation(fields: [alertProductId], references: [id], onDelete: Cascade)
+  date           DateTime     @default(now())
+  recipientEmail String
+  stockLevel     Int
+  status         LogStatus
+
+  @@index([shop])
+}
+
+model Setting {
+  id                  Int      @id @default(autoincrement())
+  shop                String   @unique
+  enableNotifications Boolean  @default(true)
+  notificationEmail   String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id        Int      @id @default(autoincrement())
+  shop      String   @unique
+  subject   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
