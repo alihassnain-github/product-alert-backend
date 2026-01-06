@@ -4,18 +4,16 @@ import shopify from "./lib/shopify.js";
 import transporter from "./lib/mail.js";
 import db from "./lib/prisma.js";
 import redis from "./lib/redis.js";
+import renderTemplate from "./lib/templateRenderer.js";
 
 const worker = new Worker(
     "inventory-alerts",
     async (job) => {
 
-        const { shop, alertProductId } = job.data;
+        const { shop, id, variantId, threshold, notificationEmail } = job.data;
 
         const session = await db.session.findFirst({ where: { shop } });
         if (!session) throw new Error("Session not found");
-
-        const product = await db.alertproduct.findUnique({ where: { id: alertProductId } });
-        if (!product) throw new Error("Product not found");
 
         const emailtemplate = await db.emailtemplate.findFirst({ where: { shop } });
         if (!emailtemplate) throw new Error("Template not found");
@@ -34,15 +32,17 @@ const worker = new Worker(
                     title
                     sku
                     inventoryQuantity
+                    legacyResourceId
                     product {
                         title
+                        legacyResourceId
                     }
                 }
                 }
             `,
             {
                 variables: {
-                    variantId: product.variantId,
+                    variantId: variantId,
                 },
             });
 
@@ -53,21 +53,41 @@ const worker = new Worker(
             product_name: productVariant?.product?.title,
             variant_name: productVariant?.title,
             quantity: productVariant?.inventoryQuantity,
-            low_stock_threshold: product.threshold,
+            low_stock_threshold: threshold,
             sku: productVariant?.sku,
-            inventory_link: "",
+            inventory_link: `https://${shop}/admin/products/${productVariant?.product?.legacyResourceId}/variants/${productVariant?.legacyResourceId}`,
         }
+
+        const subject = renderTemplate(
+            emailtemplate.subject,
+            variables
+        );
+
+        const body = renderTemplate(
+            emailtemplate.body,
+            variables
+        );
 
         transporter.sendMail({
             from: "Product Stock Alert <no-reply@alihasnain.h3techs@gmail.com>",
-            to: "alihasnain.h3techs@gmail.com",
-            subject: "Hello from tests",
-            text: "This message was sent from a Node.js integration test.",
+            to: notificationEmail,
+            subject: subject,
+            text: body,
         }).then((info) => {
             console.log("Message sent: %s", info.messageId);
         }).catch((error) => {
-            console.error;
+            console.error(error);
         })
+
+        await db.emaillog.create({
+            data: {
+                shop,
+                alertProductId: id,
+                recipientEmail: notificationEmail,
+                stockLevel: productVariant?.inventoryQuantity,
+                status: "SUCCESS"
+            }
+        });
 
     },
     { connection: redis, concurrency: 50 }
