@@ -2,8 +2,9 @@
     "name": "product-stock-alert-backend",
     "version": "1.0.0",
     "description": "",
-    "main": "index.js",
+    "main": "worker.js",
     "scripts": {
+        "dev": "node worker.js",
         "format": "prettier --write .",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -15,12 +16,14 @@
         "@prisma/client": "^6.16.3",
         "@shopify/shopify-api": "^12.2.0",
         "bullmq": "^5.66.4",
+        "dotenv": "^17.2.3",
         "handlebars": "^4.7.8",
         "ioredis": "^5.8.2",
         "nodemailer": "^7.0.12",
         "prisma": "^6.16.3"
     },
     "devDependencies": {
+        "@types/nodemailer": "^7.0.4",
         "prettier": "3.7.4"
     }
 }

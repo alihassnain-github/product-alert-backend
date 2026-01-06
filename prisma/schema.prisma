@@ -1,29 +1,52 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-enum AlertFrequency {
-  ONCE   
-  ALWAYS 
+model alertproduct {
+  id             Int                         @id @default(autoincrement())
+  shop           String
+  productId      String
+  variantId      String
+  inventoryItem  String
+  threshold      Int
+  alertFrequency alertproduct_alertFrequency @default(ONCE)
+  isTriggered    Boolean                     @default(false)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime
+  emaillog       emaillog[]
+
+  @@index([shop], map: "AlertProduct_shop_idx")
 }
 
-enum LogStatus {
-  SUCCESS
-  FAILED
+model emaillog {
+  id             Int             @id @default(autoincrement())
+  shop           String
+  alertProductId Int
+  date           DateTime        @default(now())
+  recipientEmail String
+  stockLevel     Int
+  status         emaillog_status
+  alertproduct   alertproduct    @relation(fields: [alertProductId], references: [id], onDelete: Cascade, map: "EmailLog_alertProductId_fkey")
+
+  @@index([alertProductId], map: "EmailLog_alertProductId_fkey")
+  @@index([shop], map: "EmailLog_shop_idx")
 }
 
-model Session {
+model emailtemplate {
+  id        Int      @id @default(autoincrement())
+  shop      String   @unique(map: "EmailTemplate_shop_key")
+  subject   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model session {
   id                  String    @id
   shop                String
   state               String
@@ -43,50 +66,21 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
-model AlertProduct {
-  id             Int            @id @default(autoincrement())
-  shop           String
-  productId      String
-  variantId      String
-  inventoryItem  String
-  threshold      Int
-  alertFrequency AlertFrequency @default(ONCE)
-  isTriggered    Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  logs EmailLog[]
-
-  @@index([shop])
-}
-
-model EmailLog {
-  id             Int          @id @default(autoincrement())
-  shop           String // Added: Helps in global log cleanup or store-specific queries
-  alertProductId Int // Foreign Key to AlertProduct
-  alertProduct   AlertProduct @relation(fields: [alertProductId], references: [id], onDelete: Cascade)
-  date           DateTime     @default(now())
-  recipientEmail String
-  stockLevel     Int
-  status         LogStatus
-
-  @@index([shop])
-}
-
-model Setting {
+model setting {
   id                  Int      @id @default(autoincrement())
-  shop                String   @unique
+  shop                String   @unique(map: "Setting_shop_key")
   enableNotifications Boolean  @default(true)
   notificationEmail   String
   createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime
 }
 
-model EmailTemplate {
-  id        Int      @id @default(autoincrement())
-  shop      String   @unique
-  subject   String
-  body      String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum alertproduct_alertFrequency {
+  ONCE
+  ALWAYS
+}
+
+enum emaillog_status {
+  SUCCESS
+  FAILED
 }
