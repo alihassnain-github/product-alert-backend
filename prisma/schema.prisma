@@ -17,10 +17,11 @@ model alertproduct {
   alertFrequency alertproduct_alertFrequency @default(ONCE)
   isTriggered    Boolean                     @default(false)
   createdAt      DateTime                    @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime                    @updatedAt
+  productTitle   String
   emaillog       emaillog[]
 
-  @@index([shop], map: "AlertProduct_shop_idx")
+  @@index([shop, productTitle], map: "AlertProduct_shop_productTitle_idx")
 }
 
 model emaillog {
@@ -43,7 +44,7 @@ model emailtemplate {
   subject   String
   body      String   @db.Text
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
 }
 
 model session {
@@ -72,7 +73,7 @@ model setting {
   enableNotifications Boolean  @default(true)
   notificationEmail   String
   createdAt           DateTime @default(now())
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
 }
 
 enum alertproduct_alertFrequency {
