@@ -6,6 +6,8 @@ import db from "./lib/prisma.js";
 import redis from "./lib/redis.js";
 import renderTemplate from "./lib/templateRenderer.js";
 
+let status = "FAILED";
+
 const worker = new Worker(
     "inventory-alerts",
     async (job) => {
@@ -68,27 +70,28 @@ const worker = new Worker(
             variables
         );
 
-        transporter.sendMail({
-            from: "Product Stock Alert <no-reply@alihasnain.h3techs@gmail.com>",
-            to: notificationEmail,
-            subject: subject,
-            text: body,
-        }).then((info) => {
-            console.log("Message sent: %s", info.messageId);
-        }).catch((error) => {
-            console.error(error);
-        })
+        try {
+            await transporter.sendMail({
+                from: "Product Stock Alert <no-reply@alihasnain.h3techs@gmail.com>",
+                to: notificationEmail,
+                subject: subject,
+                text: body,
+            })
 
-        await db.emaillog.create({
-            data: {
-                shop,
-                alertProductId: id,
-                recipientEmail: notificationEmail,
-                stockLevel: productVariant?.inventoryQuantity,
-                status: "SUCCESS"
-            }
-        });
-
+            status = "SUCCESS";
+        } catch (error) {
+            console.error("Error sending email: ", error);
+        } finally {
+            await db.emaillog.create({
+                data: {
+                    shop,
+                    alertProductId: id,
+                    recipientEmail: notificationEmail,
+                    stockLevel: productVariant?.inventoryQuantity,
+                    status
+                }
+            });
+        }
     },
     { connection: redis, concurrency: 50 }
 );
